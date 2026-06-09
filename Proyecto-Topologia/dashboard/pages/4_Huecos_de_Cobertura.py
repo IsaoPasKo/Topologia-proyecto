@@ -50,8 +50,14 @@ with st.sidebar:
     show_simplex = st.checkbox("Mostrar símplice Vietoris-Rips", False)
     if show_simplex:
         eps_simplex = st.slider("ε del símplice (m)", 100, 8000, 1500, 100)
+        st.caption(
+            "💡 Cada hueco es visible en el símplice solo cuando "
+            "ε ∈ [birth, death] de ese hueco. "
+            "Las **líneas punteadas** sobre el mapa muestran el borde "
+            "exacto del ciclo H₁, independiente de ε."
+        )
         show_disks = st.checkbox("Mostrar discos Čech", False)
-        max_pts_vr = st.slider("Puntos máx. símplice", 50, 500, 200, 50,
+        max_pts_vr = st.slider("Puntos máx. símplice", 50, 500, 500, 50,
                                help="Más puntos = más aristas y mapa más lento.")
 
 m = base_map()
@@ -82,7 +88,9 @@ for niv in seleccion:
     label_suffix = niv if sector_sel == "ambos" else f"{niv} · {sector_sel}"
     add_holes_layer(m, holes, color=color, label=f"huecos — {label_suffix}")
     if show_simplex:
-        Xs_vr = landmark_sample(r["X"], max_n=max_pts_vr)
+        # Usar los mismos puntos que ripser, con submuestreo solo si exceden max_pts_vr
+        X_full = r["X"]
+        Xs_vr = landmark_sample(X_full, max_n=max_pts_vr) if len(X_full) > max_pts_vr else X_full
         add_simplex_layer(
             m, Xs_vr, eps=eps_simplex,
             color=color, label=label_suffix,

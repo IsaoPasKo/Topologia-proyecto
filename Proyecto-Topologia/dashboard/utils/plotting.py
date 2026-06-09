@@ -125,6 +125,17 @@ def add_holes_layer(m: folium.Map, holes: list[dict], color: str = "red",
         ).add_to(layer)
         folium.CircleMarker([lat, lon], radius=4, color=color, fill=True).add_to(layer)
 
+        # Aristas del ciclo H₁ — borde topológico exacto del hueco (líneas punteadas)
+        if "cycle_edges_xy" in h:
+            for p1, p2 in h["cycle_edges_xy"]:
+                lat1, lon1 = utm_to_latlon(*p1)
+                lat2, lon2 = utm_to_latlon(*p2)
+                folium.PolyLine(
+                    locations=[[lat1, lon1], [lat2, lon2]],
+                    color=color, weight=2, opacity=0.8, dash_array="6 4",
+                    tooltip="Arista del ciclo H₁",
+                ).add_to(layer)
+
         # Marcador de ubicación sugerida para nueva escuela
         if "nueva_escuela_xy" in h:
             lat2, lon2 = utm_to_latlon(*h["nueva_escuela_xy"])
@@ -171,8 +182,9 @@ def add_simplex_layer(
     tree = cKDTree(Xs)
     edges = list(tree.query_pairs(r=eps))
 
+    # Solo dibujar triángulos si hay pocos puntos y pocas aristas para no congelar el browser
     triangles = []
-    if len(Xs) <= 200:
+    if len(Xs) <= 200 and len(edges) <= 4000:
         edge_set = set(edges)
         n = len(Xs)
         for i, j in edges:
