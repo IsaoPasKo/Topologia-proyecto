@@ -10,8 +10,8 @@ import streamlit as st
 from streamlit_folium import st_folium
 
 from utils.data_loader import NIVEL_COLOR, SECTORES, load_escuelas, load_tda
-from utils.plotting import add_holes_layer, base_map, utm_to_latlon
-from utils.tda import compute_for_points, top_h1_with_cocycles
+from utils.plotting import add_holes_layer, add_simplex_layer, base_map, utm_to_latlon
+from utils.tda import compute_for_points, landmark_sample, top_h1_with_cocycles
 
 st.set_page_config(page_title="Huecos de Cobertura", page_icon="🗺️", layout="wide")
 st.title("🗺️ Huecos de cobertura escolar")
@@ -46,6 +46,13 @@ with st.sidebar:
         st.caption("Cálculo sin submuestreo: se usan todas las escuelas del subconjunto.")
     top_k = st.slider("Top-K huecos por nivel", 1, 10, 5)
     show_schools = st.checkbox("Mostrar escuelas como puntos", False)
+    st.divider()
+    show_simplex = st.checkbox("Mostrar símplice Vietoris-Rips", False)
+    if show_simplex:
+        eps_simplex = st.slider("ε del símplice (m)", 100, 8000, 1500, 100)
+        show_disks = st.checkbox("Mostrar discos Čech", False)
+        max_pts_vr = st.slider("Puntos máx. símplice", 50, 500, 200, 50,
+                               help="Más puntos = más aristas y mapa más lento.")
 
 m = base_map()
 
@@ -74,6 +81,13 @@ for niv in seleccion:
     color = NIVEL_COLOR.get(niv, "black")
     label_suffix = niv if sector_sel == "ambos" else f"{niv} · {sector_sel}"
     add_holes_layer(m, holes, color=color, label=f"huecos — {label_suffix}")
+    if show_simplex:
+        Xs_vr = landmark_sample(r["X"], max_n=max_pts_vr)
+        add_simplex_layer(
+            m, Xs_vr, eps=eps_simplex,
+            color=color, label=label_suffix,
+            show_disks=show_disks,
+        )
     for h in holes:
         lat, lon = utm_to_latlon(*h["centroid_xy"])
         row = {
@@ -94,7 +108,11 @@ for niv in seleccion:
 
 if show_schools:
     import folium
-    df_pts = df if sector_sel == "ambos" else df[df["sector"] == sector_sel]
+    df_pts = df.copy()
+    if sector_sel != "ambos":
+        df_pts = df_pts[df_pts["sector"] == sector_sel]
+    if "todas" not in seleccion:
+        df_pts = df_pts[df_pts["nivel"].isin(seleccion)]
     layer = folium.FeatureGroup(name=f"escuelas (muestra · {sector_sel})")
     for _, row in df_pts.sample(min(800, len(df_pts)), random_state=0).iterrows():
         folium.CircleMarker(

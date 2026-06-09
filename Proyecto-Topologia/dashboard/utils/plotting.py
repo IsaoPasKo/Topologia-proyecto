@@ -6,6 +6,7 @@ import numpy as np
 import plotly.graph_objects as go
 from folium.plugins import MarkerCluster
 from pyproj import Transformer
+from scipy.spatial import cKDTree
 
 from .data_loader import NIVEL_COLOR
 
@@ -145,4 +146,76 @@ def add_holes_layer(m: folium.Map, holes: list[dict], color: str = "red",
                 ),
             ).add_to(layer)
     layer.add_to(m)
+    return m
+
+
+def add_simplex_layer(
+    m: folium.Map,
+    Xs: np.ndarray,
+    eps: float,
+    color: str = "#1f77b4",
+    label: str = "símplice",
+    show_disks: bool = False,
+) -> folium.Map:
+    """Dibuja el complejo Vietoris-Rips a radio eps sobre el mapa.
+
+    Xs: coordenadas UTM (n, 2) de los landmarks.
+    Añade capas separadas para triángulos, aristas, discos y vértices.
+    Los triángulos sólo se dibujan si len(Xs) <= 200 para no saturar el browser.
+    """
+    if len(Xs) < 2 or eps <= 0:
+        return m
+
+    latlon = np.array([utm_to_latlon(x, y) for x, y in Xs])
+
+    tree = cKDTree(Xs)
+    edges = list(tree.query_pairs(r=eps))
+
+    triangles = []
+    if len(Xs) <= 200:
+        edge_set = set(edges)
+        n = len(Xs)
+        for i, j in edges:
+            for k in range(j + 1, n):
+                if (i, k) in edge_set and (j, k) in edge_set:
+                    triangles.append((i, j, k))
+
+    if triangles:
+        tri_layer = folium.FeatureGroup(name=f"Triángulos — {label}", show=True)
+        for i, j, k in triangles:
+            folium.Polygon(
+                locations=[latlon[i], latlon[j], latlon[k]],
+                color=color, fill=True, fill_color=color,
+                fill_opacity=0.15, weight=0,
+            ).add_to(tri_layer)
+        tri_layer.add_to(m)
+
+    if edges:
+        edge_layer = folium.FeatureGroup(name=f"Aristas — {label}", show=True)
+        for i, j in edges:
+            folium.PolyLine(
+                locations=[latlon[i], latlon[j]],
+                color=color, weight=1.5, opacity=0.55,
+            ).add_to(edge_layer)
+        edge_layer.add_to(m)
+
+    if show_disks:
+        disk_layer = folium.FeatureGroup(name=f"Discos Čech — {label}", show=False)
+        for lat, lon in latlon:
+            folium.Circle(
+                location=[lat, lon], radius=eps / 2,
+                color=color, fill=True, fill_color=color,
+                fill_opacity=0.06, weight=0,
+            ).add_to(disk_layer)
+        disk_layer.add_to(m)
+
+    vert_layer = folium.FeatureGroup(name=f"Vértices — {label}", show=True)
+    for lat, lon in latlon:
+        folium.CircleMarker(
+            location=[lat, lon], radius=3,
+            color=color, fill=True, fill_color=color,
+            fill_opacity=0.85, weight=1,
+        ).add_to(vert_layer)
+    vert_layer.add_to(m)
+
     return m

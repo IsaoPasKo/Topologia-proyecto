@@ -16,7 +16,7 @@ def _hash_array(X: np.ndarray) -> str:
 def landmark_sample(X: np.ndarray, max_n: int = 1500, seed: int = 0) -> np.ndarray:
     if len(X) <= max_n:
         return X
-    km = KMeans(n_clusters=max_n, n_init=3, random_state=seed).fit(X)
+    km = KMeans(n_clusters=max_n, n_init=10, random_state=seed).fit(X)
     return km.cluster_centers_
 
 
@@ -97,6 +97,8 @@ def top_h1_with_cocycles(r: dict, k: int = 5) -> list[dict]:
     deaths = np.where(np.isfinite(dgm1[:, 1]), dgm1[:, 1], r["thresh"])
     pers = deaths - dgm1[:, 0]
     order = np.argsort(-pers)[:k]
+    from scipy.spatial import cKDTree
+    tree = cKDTree(X)
     out = []
     for idx in order:
         coc = cocycles[idx]
@@ -107,10 +109,9 @@ def top_h1_with_cocycles(r: dict, k: int = 5) -> list[dict]:
         centroid = X[verts].mean(axis=0)
         # Ubicación sugerida para nueva escuela = punto más desatendido dentro del hueco
         nueva_escuela_xy = _mejor_ubicacion_nueva_escuela(X, verts)
-        # Radio = distancia desde el centroide a la escuela más cercana
-        from scipy.spatial import cKDTree
-        tree = cKDTree(X)
-        geom_radius = float(tree.query(centroid, k=1)[0])
+        # Radio = distancia desde la ubicación sugerida a la escuela más cercana
+        # (radio del mayor círculo vacío dentro del hueco)
+        geom_radius = float(tree.query(nueva_escuela_xy, k=1)[0])
         out.append({
             "birth": float(dgm1[idx, 0]),
             "death": float(deaths[idx]),
