@@ -51,14 +51,16 @@ def betti_curves(dgms: list[np.ndarray], eps_grid: np.ndarray) -> np.ndarray:
     return out
 
 
-def _max_empty_point(X_all: np.ndarray, verts: np.ndarray) -> np.ndarray:
-    """Punto interior del hueco más alejado de cualquier escuela.
+def _mejor_ubicacion_nueva_escuela(X_all: np.ndarray, verts: np.ndarray) -> np.ndarray:
+    """Ubicación óptima para una nueva escuela dentro del hueco.
 
-    Construye una grilla densa dentro del casco convexo de los vértices del cociclo,
-    filtra los candidatos que caen fuera del polígono y devuelve el que maximiza
-    la distancia mínima a todos los puntos en X_all.
+    Devuelve el punto interior al casco convexo de los vértices del cociclo
+    que maximiza la distancia mínima a cualquier escuela existente, es decir,
+    el lugar más desatendido dentro del área del hueco.
+    No es el centroide del hueco — es la recomendación de dónde colocar
+    una nueva escuela para reducir la brecha de cobertura.
     """
-    from scipy.spatial import cKDTree, ConvexHull
+    from scipy.spatial import cKDTree
     from shapely.geometry import MultiPoint, Point
 
     pts = X_all[verts]
@@ -77,8 +79,6 @@ def _max_empty_point(X_all: np.ndarray, verts: np.ndarray) -> np.ndarray:
     except Exception:
         candidates = grid
 
-    # Si el polígono es demasiado pequeño y no contiene ningún punto de la grilla,
-    # caer de vuelta a la grilla completa
     if len(candidates) == 0:
         candidates = grid
 
@@ -103,8 +103,10 @@ def top_h1_with_cocycles(r: dict, k: int = 5) -> list[dict]:
         verts = np.unique(coc[:, :2].ravel()).astype(int) if len(coc) else np.array([], dtype=int)
         if len(verts) == 0:
             continue
-        # Centroide = punto interior más alejado de cualquier escuela (opción A)
-        centroid = _max_empty_point(X, verts)
+        # Centroide = media geométrica de los vértices del ciclo H1
+        centroid = X[verts].mean(axis=0)
+        # Ubicación sugerida para nueva escuela = punto más desatendido dentro del hueco
+        nueva_escuela_xy = _mejor_ubicacion_nueva_escuela(X, verts)
         # Radio = distancia desde el centroide a la escuela más cercana
         from scipy.spatial import cKDTree
         tree = cKDTree(X)
@@ -114,6 +116,7 @@ def top_h1_with_cocycles(r: dict, k: int = 5) -> list[dict]:
             "death": float(deaths[idx]),
             "pers": float(pers[idx]),
             "centroid_xy": centroid,
+            "nueva_escuela_xy": nueva_escuela_xy,
             "vert_xy": X[verts],
             "n_verts": int(len(verts)),
             "geom_radius": geom_radius,

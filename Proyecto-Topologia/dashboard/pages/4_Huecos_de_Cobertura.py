@@ -18,9 +18,11 @@ st.title("🗺️ Huecos de cobertura escolar")
 
 st.markdown(
     "Los **huecos H₁ más persistentes** representan zonas rodeadas por "
-    "escuelas pero con un déficit interno de cobertura. Cada hueco se dibuja "
-    "como un círculo centrado en el centroide del ciclo, con radio = "
-    "persistencia / 2."
+    "escuelas pero con un déficit interno de cobertura. "
+    "Cada hueco se dibuja como un círculo centrado en el **centroide geométrico** "
+    "(media de los vértices del ciclo). "
+    "La **★ estrella dorada** marca la ubicación sugerida para una nueva escuela: "
+    "el punto dentro del hueco más alejado de cualquier escuela existente."
 )
 
 df = load_escuelas()
@@ -74,15 +76,21 @@ for niv in seleccion:
     add_holes_layer(m, holes, color=color, label=f"huecos — {label_suffix}")
     for h in holes:
         lat, lon = utm_to_latlon(*h["centroid_xy"])
-        rows.append({
+        row = {
             "nivel": niv,
             "sector": sector_sel,
-            "lat": lat, "lon": lon,
+            "centroide lat": round(lat, 5),
+            "centroide lon": round(lon, 5),
             "birth (m)": round(h["birth"], 0),
             "death (m)": round(h["death"], 0),
             "persistencia (m)": round(h["pers"], 0),
             "n_vértices": h["n_verts"],
-        })
+        }
+        if "nueva_escuela_xy" in h:
+            lat2, lon2 = utm_to_latlon(*h["nueva_escuela_xy"])
+            row["★ nueva escuela lat"] = round(lat2, 5)
+            row["★ nueva escuela lon"] = round(lon2, 5)
+        rows.append(row)
 
 if show_schools:
     import folium
@@ -112,13 +120,14 @@ with col2:
             use_container_width=True, hide_index=True,
         )
         biggest = max(rows, key=lambda r: r["persistencia (m)"])
+        nueva_lat = biggest.get("★ nueva escuela lat", biggest["centroide lat"])
+        nueva_lon = biggest.get("★ nueva escuela lon", biggest["centroide lon"])
         st.info(
             f"**Hueco más significativo**: nivel `{biggest['nivel']}`, "
-            f"~{int(biggest['persistencia (m)'])} m de persistencia, "
-            f"centroide en ({biggest['lat']:.4f}, {biggest['lon']:.4f}). "
-            "Indica una zona con déficit potencial de cobertura escolar "
-            "que podría priorizarse para nuevos planteles o reasignación "
-            "de matrícula."
+            f"~{int(biggest['persistencia (m)'])} m de persistencia. "
+            f"Centroide del hueco: ({biggest['centroide lat']}, {biggest['centroide lon']}). "
+            f"**★ Ubicación sugerida para nueva escuela**: ({nueva_lat}, {nueva_lon}) "
+            "— punto más alejado de cualquier escuela existente dentro del hueco."
         )
     else:
         st.info("Selecciona al menos un nivel para ver huecos.")

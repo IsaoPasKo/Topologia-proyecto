@@ -113,6 +113,7 @@ def add_holes_layer(m: folium.Map, holes: list[dict], color: str = "red",
     layer = folium.FeatureGroup(name=label)
     for h in holes:
         lat, lon = utm_to_latlon(*h["centroid_xy"])
+        # Círculo centrado en el centroide geométrico del hueco
         folium.Circle(
             [lat, lon], radius=max(h.get("geom_radius", h["pers"] / 2), 100),
             color=color, fill=True, fill_opacity=0.15,
@@ -122,5 +123,26 @@ def add_holes_layer(m: folium.Map, holes: list[dict], color: str = "red",
                    f"<br>vértices: {h['n_verts']}"),
         ).add_to(layer)
         folium.CircleMarker([lat, lon], radius=4, color=color, fill=True).add_to(layer)
+
+        # Marcador de ubicación sugerida para nueva escuela
+        if "nueva_escuela_xy" in h:
+            lat2, lon2 = utm_to_latlon(*h["nueva_escuela_xy"])
+            folium.Marker(
+                [lat2, lon2],
+                icon=folium.DivIcon(
+                    html='<div style="font-size:22px;line-height:1;'
+                         'color:#FFD700;text-shadow:0 0 3px #333;'
+                         'cursor:pointer">★</div>',
+                    icon_size=(22, 22),
+                    icon_anchor=(11, 11),
+                ),
+                tooltip="📍 Ubicación sugerida para nueva escuela",
+                popup=(
+                    "<b>Ubicación sugerida para nueva escuela</b><br>"
+                    "Punto más alejado de cualquier escuela existente "
+                    "dentro del área del hueco.<br>"
+                    "<i>Prioridad alta para nuevos planteles.</i>"
+                ),
+            ).add_to(layer)
     layer.add_to(m)
     return m
