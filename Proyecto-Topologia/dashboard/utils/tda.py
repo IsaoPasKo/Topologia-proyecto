@@ -112,15 +112,12 @@ def top_h1_with_cocycles(r: dict, k: int = 5) -> list[dict]:
         # Radio = distancia desde la ubicación sugerida a la escuela más cercana
         # (radio del mayor círculo vacío dentro del hueco)
         geom_radius = float(tree.query(nueva_escuela_xy, k=1)[0])
-        # Aristas del cociclo H1 — borde topológico exacto del hueco
-        cycle_edges_xy = [(X[int(e[0])], X[int(e[1])]) for e in coc[:, :2]]
         out.append({
             "birth": float(dgm1[idx, 0]),
             "death": float(deaths[idx]),
             "pers": float(pers[idx]),
             "centroid_xy": centroid,
             "nueva_escuela_xy": nueva_escuela_xy,
-            "cycle_edges_xy": cycle_edges_xy,
             "vert_xy": X[verts],
             "n_verts": int(len(verts)),
             "geom_radius": geom_radius,

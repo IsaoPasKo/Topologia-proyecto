@@ -114,48 +114,20 @@ def add_holes_layer(m: folium.Map, holes: list[dict], color: str = "red",
     layer = folium.FeatureGroup(name=label)
     for h in holes:
         lat, lon = utm_to_latlon(*h["centroid_xy"])
-        # Círculo centrado en el centroide geométrico del hueco
+        # Círculo centrado en el centroide — borde blanco grueso para destacar sobre el símplice
         folium.Circle(
             [lat, lon], radius=max(h.get("geom_radius", h["pers"] / 2), 100),
-            color=color, fill=True, fill_opacity=0.15,
+            color="white", weight=3, fill=True, fill_color=color, fill_opacity=0.35,
             popup=(f"<b>{label}</b><br>birth: {h['birth']:.0f} m"
                    f"<br>death: {h['death']:.0f} m"
                    f"<br>persistencia: {h['pers']:.0f} m"
                    f"<br>vértices: {h['n_verts']}"),
         ).add_to(layer)
-        folium.CircleMarker([lat, lon], radius=4, color=color, fill=True).add_to(layer)
+        folium.CircleMarker(
+            [lat, lon], radius=5,
+            color="white", weight=2, fill=True, fill_color=color, fill_opacity=1.0,
+        ).add_to(layer)
 
-        # Aristas del ciclo H₁ — borde topológico exacto del hueco (líneas punteadas)
-        if "cycle_edges_xy" in h:
-            for p1, p2 in h["cycle_edges_xy"]:
-                lat1, lon1 = utm_to_latlon(*p1)
-                lat2, lon2 = utm_to_latlon(*p2)
-                folium.PolyLine(
-                    locations=[[lat1, lon1], [lat2, lon2]],
-                    color=color, weight=2, opacity=0.8, dash_array="6 4",
-                    tooltip="Arista del ciclo H₁",
-                ).add_to(layer)
-
-        # Marcador de ubicación sugerida para nueva escuela
-        if "nueva_escuela_xy" in h:
-            lat2, lon2 = utm_to_latlon(*h["nueva_escuela_xy"])
-            folium.Marker(
-                [lat2, lon2],
-                icon=folium.DivIcon(
-                    html='<div style="font-size:22px;line-height:1;'
-                         'color:#FFD700;text-shadow:0 0 3px #333;'
-                         'cursor:pointer">★</div>',
-                    icon_size=(22, 22),
-                    icon_anchor=(11, 11),
-                ),
-                tooltip="📍 Ubicación sugerida para nueva escuela",
-                popup=(
-                    "<b>Ubicación sugerida para nueva escuela</b><br>"
-                    "Punto más alejado de cualquier escuela existente "
-                    "dentro del área del hueco.<br>"
-                    "<i>Prioridad alta para nuevos planteles.</i>"
-                ),
-            ).add_to(layer)
     layer.add_to(m)
     return m
 
